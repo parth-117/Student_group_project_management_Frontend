@@ -208,5 +208,4 @@ const AdminProjectView = () => {
     </div>
   )
 }
-
 export default AdminProjectView

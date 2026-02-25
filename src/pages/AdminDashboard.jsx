@@ -267,8 +267,7 @@ const AdminDashboard = () => {
 </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Deadline</label>
-                  <input
+                  <label>Deadline</label>                  <input
                     type="date"
                     value={newProject.deadline}
                     onChange={(e) => setNewProject({...newProject, deadline: e.target.value})}
@@ -358,5 +357,4 @@ const AdminDashboard = () => {
     </div>
   )
 }
-
 export default AdminDashboard

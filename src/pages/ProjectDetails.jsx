@@ -12,15 +12,13 @@ const ProjectDetails = () => {
     projects, 
     groups, 
     tasks, 
-    students,
-    getGroupByProjectAndUser,
+    students,    getGroupByProjectAndUser,
     getTasksByGroup,
     addTask,
     updateTaskStatus,
     submitProject,
     deleteSubmission
   } = useData()
-
   const [activeTab, setActiveTab] = useState('details')
   const [newTask, setNewTask] = useState({ title: '', assignedTo: '' })
   const [selectedFile, setSelectedFile] = useState(null)
@@ -55,7 +53,6 @@ const ProjectDetails = () => {
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0])
   }
-
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!selectedFile) {
@@ -64,8 +61,7 @@ const ProjectDetails = () => {
     }
     if (!confirm('Are you sure you want to submit this project?')) {
       return
-    }
-    submitProject(userGroup.id, selectedFile)
+    }    submitProject(userGroup.id, selectedFile)
     alert(userGroup.status === 'Submitted' ? 'Submission updated successfully!' : 'Project submitted successfully!')
     setSelectedFile(null)
     setIsEditingSubmission(false)
@@ -258,8 +254,7 @@ const ProjectDetails = () => {
         {activeTab === 'submission' && (
           <div className="submission-tab">
             {userGroup ? (
-              <div className="submission-content">
-                {userGroup.status === 'Submitted' ? (
+              <div className="submission-content">                {userGroup.status === 'Submitted' ? (
                   <div className="submitted-status">
                     <div className="success-icon">✅</div>
                     <h3>Project Submitted!</h3>
@@ -328,5 +323,4 @@ const ProjectDetails = () => {
     </div>
   )
 }
-
 export default ProjectDetails

@@ -389,5 +389,4 @@
   .groups-list,
   .projects-grid {
     grid-template-columns: 1fr;
-  }
-}
+  }}

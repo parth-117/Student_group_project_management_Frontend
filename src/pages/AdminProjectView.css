@@ -271,5 +271,4 @@
 
 @media (max-width: 768px) {
   .groups-table { overflow-x: auto; }
-  .groups-table table { min-width: 800px; }
-}
+  .groups-table table { min-width: 800px; }}
