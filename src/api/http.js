@@ -18,7 +18,7 @@ export const apiFetch = async (path, options = {}) => {
     headers,
     body,
     signal,
-    credentials = 'include',
+    credentials = 'omit',
   } = options
 
   const requestHeaders = new Headers(headers || {})
@@ -80,7 +80,7 @@ export const apiDownloadBlob = async (path, options = {}) => {
     method: options.method || 'GET',
     headers: requestHeaders,
     signal: options.signal,
-    credentials: options.credentials || 'include',
+    credentials: options.credentials || 'omit',
   })
 
   if (!res.ok) {
