@@ -35,7 +35,7 @@ export default function Register() {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
   
@@ -60,7 +60,7 @@ export default function Register() {
     }
   
     setLoading(true)
-    const result = register({
+    const result = await register({
       ...formData,
       enrollments: formData.role === 'student' ? cleanedEnrollments : [],
     })

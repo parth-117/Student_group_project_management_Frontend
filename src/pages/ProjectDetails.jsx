@@ -10,9 +10,8 @@ const ProjectDetails = () => {
   const { user } = useAuth()
   const { 
     projects, 
-    groups, 
-    tasks, 
-    students,    getGroupByProjectAndUser,
+    students,
+    getGroupByProjectAndUser,
     getTasksByGroup,
     addTask,
     updateTaskStatus,
@@ -24,7 +23,7 @@ const ProjectDetails = () => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [isEditingSubmission, setIsEditingSubmission] = useState(false)
 
-  const project = projects.find(p => p.id === projectId)
+  const project = projects.find(p => String(p.id) === String(projectId))
   const userGroup = getGroupByProjectAndUser(projectId, user.id)
   const groupTasks = userGroup ? getTasksByGroup(userGroup.id) : []
 
@@ -62,13 +61,13 @@ const ProjectDetails = () => {
     if (!confirm('Are you sure you want to submit this project?')) {
       return
     }    submitProject(userGroup.id, selectedFile)
-    alert(userGroup.status === 'Submitted' ? 'Submission updated successfully!' : 'Project submitted successfully!')
+    alert(String(userGroup.status).toLowerCase() === 'submitted' ? 'Submission updated successfully!' : 'Project submitted successfully!')
     setSelectedFile(null)
     setIsEditingSubmission(false)
   }
 
   const handleDeleteSubmission = () => {
-    if (!userGroup || userGroup.status !== 'Submitted') return
+    if (!userGroup || String(userGroup.status).toLowerCase() !== 'submitted') return
     if (!confirm('Are you sure you want to delete your submission?')) {
       return
     }
@@ -193,7 +192,7 @@ const ProjectDetails = () => {
                         <input type="text" placeholder="Task title" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} required />
                         <select value={newTask.assignedTo} onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})} required>
                           <option value="">Select Member</option>
-                          {userGroup.members.map(memberId => {
+                          {(userGroup.members || []).map(memberId => {
                             const member = getMemberDetails(memberId)
                             return <option key={memberId} value={memberId}>{member.name}</option>
                           })}
@@ -206,7 +205,7 @@ const ProjectDetails = () => {
                 <div className="tasks-list">
                   <h3>Team Tasks</h3>
                   {groupTasks.length === 0 ? <div className="no-tasks"><p>No tasks yet</p></div> : groupTasks.map(task => {
-                    const assignedMember = getMemberDetails(task.assignedTo)
+                    const assignedMember = getMemberDetails(task.assignedToId || task.assignedTo)
                     return (
                       <div key={task.id} className={`task-card ${task.status.toLowerCase().replace(' ', '-')}`}>
                         <div className="task-info">
@@ -232,7 +231,7 @@ const ProjectDetails = () => {
           <div className="team-tab">
             {userGroup ? (
               <div className="team-grid">
-                {userGroup.members.map(memberId => {
+                {(userGroup.members || []).map(memberId => {
                   const member = getMemberDetails(memberId)
                   const isLeader = memberId === userGroup.leaderId
                   return (
@@ -254,7 +253,7 @@ const ProjectDetails = () => {
         {activeTab === 'submission' && (
           <div className="submission-tab">
             {userGroup ? (
-              <div className="submission-content">                {userGroup.status === 'Submitted' ? (
+              <div className="submission-content">                {String(userGroup.status).toLowerCase() === 'submitted' ? (
                   <div className="submitted-status">
                     <div className="success-icon">✅</div>
                     <h3>Project Submitted!</h3>

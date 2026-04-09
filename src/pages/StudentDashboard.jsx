@@ -11,7 +11,6 @@ const StudentDashboard = () => {
     projects, 
     groups, 
     getGroupByProjectAndUser,
-    getProjectsBySectionAndSubject 
   } = useData()
 
   const [filterSection, setFilterSection] = useState(user?.section || '')
@@ -41,7 +40,7 @@ const [filterSubject, setFilterSubject] = useState('')
   const getProjectStatus = (project) => {
     const group = getGroupByProjectAndUser(project.id, user.id)
     if (!group) return 'not-joined'
-    if (group.status === 'Submitted') return 'submitted'
+    if (String(group.status).toLowerCase() === 'submitted') return 'submitted'
     return 'working'
   }
 
@@ -84,7 +83,7 @@ const [filterSubject, setFilterSubject] = useState('')
         <h2>My Projects</h2>
         <div className="groups-list">
           {groups
-            .filter(g => g.members.includes(user.id))
+            .filter(g => (g.members || []).includes(user.id))
             .map(group => {
               const project = projects.find(p => p.id === group.projectId)
               if (!project) return null
@@ -110,7 +109,7 @@ const [filterSubject, setFilterSubject] = useState('')
                   <div className="group-members">
                     <span className="members-label">Team Members:</span>
                     <div className="member-avatars">
-                      {group.members.map(memberId => {
+                      {(group.members || []).map(memberId => {
                         const member = { id: 's1', name: 'John Smith' } // This would come from students data
                         return (
                           <div key={memberId} className="member-avatar" title={member?.name || 'Member'}>

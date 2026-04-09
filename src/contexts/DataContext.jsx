@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
+import * as dataApi from '../api/dataApi'
 
 const DataContext = createContext(null)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useData = () => {
   const context = useContext(DataContext)
   if (!context) {
@@ -19,25 +21,57 @@ export const DataProvider = ({ children }) => {
   const [students, setStudents] = useState([])
   const [notifications, setNotifications] = useState([])
 
+  const addNotification = (message) => {
+    const notification = {
+      id: Date.now(),
+      message,
+      timestamp: new Date().toLocaleTimeString()
+    }
+    setNotifications(prev => [notification, ...prev].slice(0, 5))
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    }, 5000)
+  }
+
+  const clearNotifications = () => {
+    setNotifications([])
+  }
+
+  const normalizeGroup = (group) => {
+    if (!group) return group
+    const normalizedMembers = Array.isArray(group.members)
+      ? group.members
+      : (Array.isArray(group.memberIds) ? group.memberIds : [])
+
+    const rawStatus = typeof group.status === 'string' ? group.status : 'Working'
+    const normalizedStatus = rawStatus === rawStatus.toUpperCase()
+      ? rawStatus.charAt(0) + rawStatus.slice(1).toLowerCase()
+      : rawStatus
+
+    return {
+      ...group,
+      members: normalizedMembers,
+      status: normalizedStatus,
+    }
+  }
+
   useEffect(() => {
-    // Initialize mock students
-// Load students from AuthContext users stored in localStorage
-const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]')
+    const loadLocalStudents = () => {
+      const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]')
+      setStudents(
+        allUsers
+          .filter(u => u.role === 'student')
+          .map(u => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            enrollments: u.enrollments || [],
+          }))
+      )
+    }
 
-// Keep only students, and map to { id, name, email, section }
-setStudents(
-  allUsers
-    .filter(u => u.role === 'student')
-    .map(u => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      enrollments: u.enrollments || [],
-    }))
-)
-
-    // Initialize mock projects
-    setProjects([
+    const initMockData = () => {
+      setProjects([
       {
         id: 'p1',
         title: 'E-Commerce Platform',
@@ -74,10 +108,9 @@ setStudents(
         createdBy: 'admin1',
         createdAt: '2024-11-10'
       }
-    ])
+      ])
 
-    // Initialize mock groups
-    setGroups([
+      setGroups([
       {
         id: 'g1',
         projectId: 'p1',
@@ -94,49 +127,134 @@ setStudents(
         members: ['s1', 's6', 's8'],
         leaderId: 's1',
         status: 'Submitted',
-        submissionFile: 'project_submission_g2.zip',
+        submissionFile: { name: 'project_submission_g2.zip' },
         marks: null,
         progress: 100
       }
-    ])
+      ])
 
-    // Initialize mock tasks
-    setTasks([
+      setTasks([
       { id: 't1', groupId: 'g1', title: 'Design Database Schema', assignedTo: 's2', status: 'Completed', createdBy: 's1' },
       { id: 't2', groupId: 'g1', title: 'Create React Components', assignedTo: 's3', status: 'In Progress', createdBy: 's1' },
       { id: 't3', groupId: 'g1', title: 'Implement Authentication', assignedTo: 's4', status: 'Pending', createdBy: 's1' },
       { id: 't4', groupId: 'g1', title: 'Write Documentation', assignedTo: 's1', status: 'Pending', createdBy: 's1' },
       { id: 't5', groupId: 'g2', title: 'Database Design', assignedTo: 's6', status: 'Completed', createdBy: 's1' },
       { id: 't6', groupId: 'g2', title: 'API Development', assignedTo: 's8', status: 'Completed', createdBy: 's1' },
-    ])
+      ])
+    }
+
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    const safeLoad = async (fn, fallback) => {
+      try {
+        const result = await fn()
+        return result ?? fallback
+      } catch {
+        return fallback
+      }
+    }
+
+    const loadRemoteData = async () => {
+      const [remoteProjects, remoteGroups, remoteTasks, remoteStudents] = await Promise.all([
+        safeLoad(dataApi.listProjects, []),
+        safeLoad(dataApi.listGroups, []),
+        safeLoad(dataApi.listTasks, []),
+        safeLoad(dataApi.listStudents, []),
+      ])
+      setProjects(remoteProjects)
+      setGroups((remoteGroups || []).map(normalizeGroup))
+      setTasks(remoteTasks)
+      if (Array.isArray(remoteStudents) && remoteStudents.length > 0) {
+        setStudents(remoteStudents)
+      }
+    }
+
+    loadLocalStudents()
+
+    if (!apiEnabled) {
+      initMockData()
+      return
+    }
+
+    loadRemoteData().catch(() => {
+      initMockData()
+      addNotification('Backend not reachable, using mock data.')
+    })
   }, [])
 
   // Project operations
   const createProject = (projectData) => {
-    const newProject = {
-      ...projectData,
-      id: `p${Date.now()}`,
-      status: 'Active',
-      createdBy: user?.id,
-      createdAt: new Date().toISOString().split('T')[0]
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    if (!apiEnabled) {
+      const newProject = {
+        ...projectData,
+        id: `p${Date.now()}`,
+        status: 'Active',
+        createdBy: user?.id,
+        createdAt: new Date().toISOString().split('T')[0]
+      }
+      setProjects(prev => [...prev, newProject])
+      addNotification('Project created successfully!')
+      return newProject
     }
-    setProjects(prev => [...prev, newProject])
-    addNotification('Project created successfully!')
-    return newProject
+
+    ;(async () => {
+      try {
+        const created = await dataApi.createProject({
+          ...projectData,
+          createdBy: user?.id,
+        })
+        setProjects(prev => [...prev, created])
+        addNotification('Project created successfully!')
+      } catch (e) {
+        addNotification(`Failed to create project: ${e?.message || 'Unknown error'}`)
+      }
+    })()
   }
   const deleteProject = (projectId) => {
-    // Remove the project itself
-    setProjects(prev => prev.filter(p => p.id !== projectId))
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
 
-    // Remove all groups for that project
-    const groupsToRemove = groups.filter(g => g.projectId === projectId).map(g => g.id)
-    setGroups(prev => prev.filter(g => g.projectId !== projectId))
+    const removeProjectLocally = () => {
+      setProjects(prev => prev.filter(p => String(p.id) !== String(projectId)))
 
-    // Remove all tasks belonging to those groups
-    if (groupsToRemove.length > 0) {
-      setTasks(prev => prev.filter(t => !groupsToRemove.includes(t.groupId)))
+      const groupsToRemove = groups
+        .filter(g => String(g.projectId) === String(projectId))
+        .map(g => String(g.id))
+
+      setGroups(prev => prev.filter(g => String(g.projectId) !== String(projectId)))
+
+      if (groupsToRemove.length > 0) {
+        setTasks(prev => prev.filter(t => !groupsToRemove.includes(String(t.groupId))))
+      }
     }
 
+    const isNumericId = (value) => /^\d+$/.test(String(value))
+
+    if (apiEnabled) {
+      if (!isNumericId(projectId)) {
+        alert('Cannot delete: project is not synced to the backend.')
+        addNotification('Cannot delete: project is not synced to the backend.')
+        return
+      }
+
+      ;(async () => {
+        try {
+          await dataApi.deleteProject(projectId)
+          removeProjectLocally()
+          addNotification('Project deleted successfully!')
+        } catch (e) {
+          console.error("Delete failed:", e)
+          const message = e?.message || 'Unknown error'
+          alert(`Backend delete failed: ${message}`)
+          addNotification(`Backend delete failed: ${message}`)
+        }
+      })()
+      return
+    }
+
+    // Mock/local mode (or mock IDs while API is enabled)
+    removeProjectLocally()
     addNotification('Project deleted successfully!')
   }
 
@@ -149,8 +267,35 @@ setStudents(
 
   // Group operations
   const createGroup = (projectId, memberIds) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
     const project = projects.find(p => p.id === projectId)
     if (!project) return null
+
+    if (apiEnabled) {
+      const membersNum = (memberIds || []).map(Number).filter(Number.isFinite)
+      if (membersNum.length !== (memberIds || []).length) {
+        alert('Some selected students are not synced with the backend yet.')
+        return null
+      }
+
+      ;(async () => {
+        try {
+          const created = await dataApi.createGroup({
+            projectId: Number(projectId),
+            members: membersNum,
+            leaderId: membersNum[0],
+            status: 'WORKING',
+            marks: null,
+            progress: 0,
+          })
+          setGroups(prev => [...prev, normalizeGroup(created)])
+          addNotification('Group created successfully!')
+        } catch (e) {
+          addNotification(`Failed to create group: ${e?.message || 'Unknown error'}`)
+        }
+      })()
+      return null
+    }
 
     const newGroup = {
       id: `g${Date.now()}`,
@@ -240,15 +385,36 @@ const eligible = allUsers
 
 
   const getGroupByProjectAndUser = (projectId, userId) => {
-    return groups.find(g => g.projectId === projectId && g.members.includes(userId))
+    return groups.find(g =>
+      String(g.projectId) === String(projectId) &&
+      (g.members || []).map(String).includes(String(userId))
+    )
   }
 
   const getGroupsByProject = (projectId) => {
-    return groups.filter(g => g.projectId === projectId)
+    return groups.filter(g => String(g.projectId) === String(projectId))
   }
 
   // Task operations
   const addTask = (groupId, taskData) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    if (apiEnabled) {
+      ;(async () => {
+        try {
+          const created = await dataApi.createTask(groupId, {
+            ...taskData,
+            assignedTo: taskData?.assignedTo != null ? Number(taskData.assignedTo) : null,
+            createdBy: taskData?.createdBy != null ? Number(taskData.createdBy) : null,
+          })
+          setTasks(prev => [...prev, created])
+        } catch (e) {
+          addNotification(`Failed to add task: ${e?.message || 'Unknown error'}`)
+        }
+      })()
+      return null
+    }
+
     const newTask = {
       ...taskData,
       id: `t${Date.now()}`,
@@ -260,17 +426,46 @@ const eligible = allUsers
   }
 
   const updateTaskStatus = (taskId, status) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    if (apiEnabled) {
+      ;(async () => {
+        try {
+          const updated = await dataApi.updateTaskStatus(taskId, status)
+          setTasks(prev => prev.map(t => (t.id === taskId ? updated : t)))
+        } catch (e) {
+          addNotification(`Failed to update task: ${e?.message || 'Unknown error'}`)
+        }
+      })()
+      return
+    }
+
     setTasks(prev => prev.map(t => 
       t.id === taskId ? { ...t, status } : t
     ))
   }
 
   const getTasksByGroup = (groupId) => {
-    return tasks.filter(t => t.groupId === groupId)
+    return tasks.filter(t => String(t.groupId) === String(groupId))
   }
 
   // File operations
   const submitProject = (groupId, file) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    if (apiEnabled) {
+      ;(async () => {
+        try {
+          const updated = await dataApi.submitGroupSubmission(groupId, file)
+          setGroups(prev => prev.map(g => (g.id === groupId ? normalizeGroup(updated) : g)))
+          addNotification('Project submitted successfully!')
+        } catch (e) {
+          addNotification(`Failed to submit project: ${e?.message || 'Unknown error'}`)
+        }
+      })()
+      return
+    }
+
     setGroups(prev => prev.map(g => 
       g.id === groupId ? { ...g, status: 'Submitted', submissionFile: file.name } : g
     ))
@@ -278,6 +473,21 @@ const eligible = allUsers
   }
 
   const deleteSubmission = (groupId) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    if (apiEnabled) {
+      ;(async () => {
+        try {
+          const updated = await dataApi.deleteGroupSubmission(groupId)
+          setGroups(prev => prev.map(g => (g.id === groupId ? normalizeGroup(updated) : g)))
+          addNotification('Submission deleted successfully!')
+        } catch (e) {
+          addNotification(`Failed to delete submission: ${e?.message || 'Unknown error'}`)
+        }
+      })()
+      return
+    }
+
     setGroups(prev => prev.map(g =>
       g.id === groupId ? { ...g, status: 'Working', submissionFile: null, marks: null } : g
     ))
@@ -285,27 +495,25 @@ const eligible = allUsers
   }
 
   const assignMarks = (groupId, marks) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+
+    if (apiEnabled) {
+      ;(async () => {
+        try {
+          const updated = await dataApi.assignMarks(groupId, marks)
+          setGroups(prev => prev.map(g => (g.id === groupId ? normalizeGroup(updated || { ...g, marks }) : g)))
+          addNotification('Marks assigned successfully!')
+        } catch (e) {
+          addNotification(`Failed to assign marks: ${e?.message || 'Unknown error'}`)
+        }
+      })()
+      return
+    }
+
     setGroups(prev => prev.map(g => 
       g.id === groupId ? { ...g, marks } : g
     ))
     addNotification('Marks assigned successfully!')
-  }
-
-  // Notification operations
-  const addNotification = (message) => {
-    const notification = {
-      id: Date.now(),
-      message,
-      timestamp: new Date().toLocaleTimeString()
-    }
-    setNotifications(prev => [notification, ...prev].slice(0, 5))
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== notification.id))
-    }, 5000)
-  }
-
-  const clearNotifications = () => {
-    setNotifications([])
   }
 
   // Get students by section

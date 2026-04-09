@@ -8,15 +8,10 @@ const AdminDashboard = () => {
   const { 
     projects, 
     createProject, 
-    groups, 
-    students,
-    getSections,
-    getSubjects,
     createGroup,
     autoCreateGroupsForProject,
     getGroupsByProject,
     assignMarks,
-    submitProject,
     deleteProject,
     getEligibleStudentsForProject
   } = useData()
@@ -108,13 +103,7 @@ const AdminDashboard = () => {
     if (!ok) return
     deleteProject(project.id)
   }
-  const openGradeModal = (group) => {
-    setGradingGroup(group)
-    setMarks(group.marks || '')
-    setShowGradeModal(true)
-  }
-
-  const projectGroups = selectedProject ? getGroupsByProject(selectedProject.id) : []
+  // const projectGroups = selectedProject ? getGroupsByProject(selectedProject.id) : []
 
   return (
     <div className="admin-dashboard">
@@ -147,7 +136,7 @@ const AdminDashboard = () => {
       <div className="projects-grid">
         {filteredProjects.map(project => {
           const projectGroupsList = getGroupsByProject(project.id)
-          const completedGroups = projectGroupsList.filter(g => g.status === 'Submitted').length
+          const completedGroups = projectGroupsList.filter(g => String(g.status).toLowerCase() === 'submitted').length
           
           return (
             <div key={project.id} className="project-card">

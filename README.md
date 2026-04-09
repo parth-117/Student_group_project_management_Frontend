@@ -14,3 +14,27 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Connect to Spring Boot CRUD (REST)
+
+1) Start your Spring Boot backend on `http://localhost:8080` with REST endpoints like:
+- `GET /api/projects`
+- `POST /api/projects`
+- `DELETE /api/projects/{id}`
+- `GET /api/groups`
+- `PATCH /api/groups/{id}` (body: `{ "marks": 85 }`)
+
+2) Enable the frontend API mode:
+- Copy `.env.example` to `.env` and keep `VITE_API_ENABLED=true`
+
+3) CORS on Spring Boot (pick one):
+- Global config:
+  - Allow origin `http://localhost:5173`
+  - Allow methods `GET,POST,PUT,PATCH,DELETE`
+  - Allow headers `*`
+  - Allow credentials if you use cookies/sessions
+
+4) Run frontend:
+- `npm run dev`
+
+Frontend API helpers live in `src/api/http.js` and `src/api/dataApi.js`.

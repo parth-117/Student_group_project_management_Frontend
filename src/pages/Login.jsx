@@ -13,12 +13,12 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     
-    const result = login(email, password, role)
+    const result = await login(email, password, role)
     
     if (result.success) {
       navigate(result.user.role === 'admin' ? '/admin' : '/student')
@@ -82,4 +82,4 @@ export default function Login() {
 
       </div>
     </div>
-  )}
+  )} 

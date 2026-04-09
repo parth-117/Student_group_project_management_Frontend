@@ -2,13 +2,13 @@ import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import './AdminProjectView.css'
+import * as dataApi from '../api/dataApi'
 
 const AdminProjectView = () => {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const { 
     projects, 
-    groups, 
     getGroupsByProject, 
     assignMarks,
     students 
@@ -18,7 +18,7 @@ const AdminProjectView = () => {
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [marks, setMarks] = useState('')
 
-  const project = projects.find(p => p.id === projectId)
+  const project = projects.find(p => String(p.id) === String(projectId))
   const projectGroups = getGroupsByProject(projectId)
 
   const getMemberDetails = (memberId) => {
@@ -43,8 +43,32 @@ const AdminProjectView = () => {
     setMarks('')
   }
 
-  const downloadProject = (group) => {
-    alert(`Downloading: ${group.submissionFile?.name || 'Project File'}`)
+  const downloadProject = async (group) => {
+    const apiEnabled = (import.meta.env.VITE_API_ENABLED || 'false') === 'true'
+    const fileName =
+      typeof group?.submissionFile === 'string'
+        ? group.submissionFile
+        : (group?.submissionFile?.name || group?.submissionFile?.originalFilename || group?.submissionFile?.fileName || 'Project_File.zip')
+
+    if (!apiEnabled) {
+      alert(`Mock Downloading: ${fileName}`)
+      return
+    }
+
+    try {
+      const blob = await dataApi.downloadGroupSubmission(group.id)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      a.remove()
+    } catch (e) {
+      console.error("Failed to download:", e)
+      alert('Failed to download project submission from the server.')
+    }
   }
 
   if (!project) {
@@ -75,11 +99,11 @@ const AdminProjectView = () => {
           <span className="stat-label">Total Groups</span>
         </div>
         <div className="stat-card">
-          <span className="stat-number">{projectGroups.filter(g => g.status === 'Submitted').length}</span>
+          <span className="stat-number">{projectGroups.filter(g => String(g.status).toLowerCase() === 'submitted').length}</span>
           <span className="stat-label">Submitted</span>
         </div>
         <div className="stat-card">
-          <span className="stat-number">{projectGroups.filter(g => g.status === 'Working').length}</span>
+          <span className="stat-number">{projectGroups.filter(g => String(g.status).toLowerCase() === 'working').length}</span>
           <span className="stat-label">Working</span>
         </div>
         <div className="stat-card">
@@ -115,7 +139,7 @@ const AdminProjectView = () => {
                     <td><span className="group-id">Group {index + 1}</span></td>
                     <td>
                       <div className="member-list">
-                        {group.members.map(memberId => {
+                        {(group.members || []).map(memberId => {
                           const member = getMemberDetails(memberId)
                           return <span key={memberId} className="member-tag">{member.name}</span>
                         })}
@@ -134,7 +158,7 @@ const AdminProjectView = () => {
                     </td>
                     <td>
                       {group.submissionFile ? (
-                        <span className="file-name">📎 {group.submissionFile.name || 'File'}</span>
+                        <span className="file-name">📎 {typeof group.submissionFile === 'string' ? group.submissionFile : (group.submissionFile?.name || group.submissionFile?.originalFilename || group.submissionFile?.fileName || 'File')}</span>
                       ) : (
                         <span className="no-file">Not submitted</span>
                       )}
@@ -181,11 +205,13 @@ const AdminProjectView = () => {
             <div className="modal-body">
               <p className="modal-info">
                 <strong>Group Members:</strong><br/>
-                {selectedGroup.members.map(id => getMemberDetails(id).name).join(', ')}
+                {(selectedGroup.members || []).map(id => getMemberDetails(id).name).join(', ')}
               </p>
               <p className="modal-info">
                 <strong>Submitted File:</strong><br/>
-                {selectedGroup.submissionFile?.name || 'Project File'}
+                {typeof selectedGroup.submissionFile === 'string'
+                  ? selectedGroup.submissionFile
+                  : (selectedGroup.submissionFile?.name || selectedGroup.submissionFile?.originalFilename || selectedGroup.submissionFile?.fileName || 'Project File')}
               </p>
               <div className="form-group">
                 <label>Enter Marks (0-100)</label>
